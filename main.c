@@ -2,7 +2,7 @@
 /**
   ******************************************************************************
   * @file           : main.c
-  * @brief          : Main program body
+  * @brief          : Eduardo Wagner
   ******************************************************************************
   * @attention
   *
@@ -20,11 +20,12 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-uint16_t V[5];
+uint16_t V[5];  // Array para armazenar os valores ADC
 
 /* USER CODE END Includes */
 
@@ -46,17 +47,27 @@ uint16_t V[5];
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+float altura = 0.0;  // Variável para armazenar a altura calculada
+float medidas[5];
+float coef_const = 4.1751;
+float coef_x1 = 0.0003;
+float coef_x2 = -0.0003;
+float coef_x3 = 0.0003;
+float coef_x4 = 0.00007219;
+float coef_x5 = -0.0005;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+//float calcular_altura(float x1, float x2, float x3, float x4, float x5);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/* Função para calcular a altura com base nos coeficientes do modelo de regressão */
+
 
 /* USER CODE END 0 */
 
@@ -91,9 +102,12 @@ int main(void)
   MX_GPIO_Init();
   MX_DMA_Init();
   MX_ADC1_Init();
+  MX_TIM10_Init();
   /* USER CODE BEGIN 2 */
+  hadc1.Init.ContinuousConvMode = ENABLE;
 
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)V, 5);
+  HAL_TIM_Base_Start_IT(&htim10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -102,7 +116,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    /* USER CODE BEGIN 3 */
+    
   }
   /* USER CODE END 3 */
 }
@@ -156,6 +170,16 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1)
+{
+	medidas[0] = (float)V[0];
+	medidas[1] = (float)V[1];
+	medidas[2] = (float)V[2];
+	medidas[3] = (float)V[3];
+	medidas[4] = (float)V[4];
+	
+	altura =   coef_const  + coef_x1 * medidas[0] +	coef_x2 * medidas[1] + coef_x3 * medidas[2] + coef_x4 * medidas[3] + coef_x5 * medidas[4];
+}
 /* USER CODE END 4 */
 
 /**
