@@ -28,7 +28,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#define NUM_VALORES 10  // Número de valores para calcular a média
+#define NUM_VALORES 20  // Número de valores para calcular a média
 float V_buffer[5][NUM_VALORES];  // Buffer para armazenar os últimos 10 valores de cada canal
 int indice = 0;  // �?ndice para inserir os novos valores
 uint16_t V[5];  // Array para armazenar os valores ADC
@@ -52,7 +52,7 @@ uint16_t V[5];  // Array para armazenar os valores ADC
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-float altura = 0.0;  // Variável para armazenar a altura calculada
+float altura = 0.0;  // Variável para armazenar a altura
 float medidas[5];
 float coef_const = 3.3165;       // 4.1751;
 float coef_x1 = 0.0006;          //0.0003;
@@ -63,9 +63,8 @@ float coef_x5 = -0.0003;         //-0.0005;
 int altura_int;
 char buffer[50];  // Buffer para transmissão de dados via UART
 
-float medidas_suavizadas[5] = {0};  // Array para armazenar valores suavizados
-int contagem = 0;  // Contador para calcular a média móvel
-float medidas_filtradas[5];  // Array para armazenar valores filtrados
+int contagem = 0;
+float medidas_filtradas[5];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -130,7 +129,7 @@ int main(void)
 	  		// Limpa a flag de atualização do Timer 10
 	  		__HAL_TIM_CLEAR_FLAG(&htim10, TIM_FLAG_UPDATE);
 
-	  		int altura_int = (int)(altura);  // Multiplica por 100 para preservar 2 casas decimais
+	  		 altura_int = (int)(altura*100);  // Multiplica por 100 para preservar 2 casas decimais
 	  		  snprintf(buffer, sizeof(buffer), "%d.%02d\r\n", altura_int / 100, altura_int % 100);
 	  		  HAL_UART_Transmit_DMA(&huart2, (uint8_t*)buffer, strlen(buffer));
 	  		}
@@ -206,13 +205,12 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1)
     }
 
     // Cálculo da altura usando os valores filtrados de cada canal
-    altura = coef_const
-           + coef_x1 * medidas_filtradas[0]
-           + coef_x2 * medidas_filtradas[1]
-           + coef_x3 * medidas_filtradas[2]
-           + coef_x4 * medidas_filtradas[3]
-           + coef_x5 * medidas_filtradas[4];
-
+    altura = coef_const+ coef_x1 * medidas_filtradas[0]+ coef_x2 * medidas_filtradas[1] + coef_x3 * medidas_filtradas[2]+ coef_x4 * medidas_filtradas[3]+ coef_x5 * medidas_filtradas[4];
+    /*indice = (0 + 1) % 5 = 1
+	  indice = (1 + 1) % 5 = 2
+	  indice = (2 + 1) % 5 = 3
+  	  indice = (3 + 1) % 5 = 4
+ 	  indice = (4 + 1) % 5 = 0  // Reinicia no início*/
     // Atualizar o índice para o próximo valor
     indice = (indice + 1) % NUM_VALORES;  // Circular
 }
