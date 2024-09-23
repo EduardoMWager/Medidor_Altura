@@ -30,7 +30,7 @@
 /* USER CODE BEGIN Includes */
 #define NUM_VALORES 10  // Número de valores para calcular a média
 float V_buffer[5][NUM_VALORES];  // Buffer para armazenar os últimos 10 valores de cada canal
-int indice = 0;  // Índice para inserir os novos valores
+int indice = 0;  // �?ndice para inserir os novos valores
 uint16_t V[5];  // Array para armazenar os valores ADC
 /* USER CODE END Includes */
 
@@ -54,13 +54,13 @@ uint16_t V[5];  // Array para armazenar os valores ADC
 /* USER CODE BEGIN PV */
 float altura = 0.0;  // Variável para armazenar a altura calculada
 float medidas[5];
-float coef_const = 4.1751;
-float coef_x1 = 0.0003;
-float coef_x2 = -0.0003;
-float coef_x3 = 0.0003;
-float coef_x4 = 0.00007219;
-float coef_x5 = -0.0005;
-
+float coef_const = 3.3165;       // 4.1751;
+float coef_x1 = 0.0006;          //0.0003;
+float coef_x2 = -0.0005;         //-0.0003;
+float coef_x3 = 0.0003;          // 0.0003;
+float coef_x4 = 0.00008897;      //0.00007219;
+float coef_x5 = -0.0003;         //-0.0005;
+int altura_int;
 char buffer[50];  // Buffer para transmissão de dados via UART
 
 float medidas_suavizadas[5] = {0};  // Array para armazenar valores suavizados
@@ -126,7 +126,14 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  if (__HAL_TIM_GET_FLAG(&htim10,TIM_FLAG_UPDATE)) {
+	  		// Limpa a flag de atualização do Timer 10
+	  		__HAL_TIM_CLEAR_FLAG(&htim10, TIM_FLAG_UPDATE);
 
+	  		int altura_int = (int)(altura);  // Multiplica por 100 para preservar 2 casas decimais
+	  		  snprintf(buffer, sizeof(buffer), "%d.%02d\r\n", altura_int / 100, altura_int % 100);
+	  		  HAL_UART_Transmit_DMA(&huart2, (uint8_t*)buffer, strlen(buffer));
+	  		}
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -209,19 +216,6 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1)
     // Atualizar o índice para o próximo valor
     indice = (indice + 1) % NUM_VALORES;  // Circular
 }
-void sendHeighToCubeMonitor(void)
-{
-  int altura_int = (int)(altura * 100);  // Multiplica por 100 para preservar 2 casas decimais
-  snprintf(buffer, sizeof(buffer), "%d.%02d\r\n", altura_int / 100, altura_int % 100);
-  HAL_UART_Transmit_DMA(&huart2, (uint8_t*)buffer, strlen(buffer));
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-    // Callback chamado após a transmissão completa via DMA.
-    // Adicione aqui qualquer código necessário para processamento pós-transmissão, se desejado.
-}
-
 /* USER CODE END 4 */
 
 /**
