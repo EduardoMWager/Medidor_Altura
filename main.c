@@ -21,12 +21,17 @@
 #include "adc.h"
 #include "dma.h"
 #include "tim.h"
+#include "usart.h"
 #include "gpio.h"
+#include "stdio.h"
+#include "string.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define NUM_VALORES 10  // Número de valores para calcular a média
+float V_buffer[5][NUM_VALORES];  // Buffer para armazenar os últimos 10 valores de cada canal
+int indice = 0;  // Índice para inserir os novos valores
 uint16_t V[5];  // Array para armazenar os valores ADC
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -55,19 +60,24 @@ float coef_x2 = -0.0003;
 float coef_x3 = 0.0003;
 float coef_x4 = 0.00007219;
 float coef_x5 = -0.0005;
+
+char buffer[50];  // Buffer para transmissão de dados via UART
+
+float medidas_suavizadas[5] = {0};  // Array para armazenar valores suavizados
+int contagem = 0;  // Contador para calcular a média móvel
+float medidas_filtradas[5];  // Array para armazenar valores filtrados
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-//float calcular_altura(float x1, float x2, float x3, float x4, float x5);
+void sendHeighToCubeMonitor(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 /* Função para calcular a altura com base nos coeficientes do modelo de regressão */
-
 
 /* USER CODE END 0 */
 
@@ -79,7 +89,6 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -103,11 +112,13 @@ int main(void)
   MX_DMA_Init();
   MX_ADC1_Init();
   MX_TIM10_Init();
+  MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   hadc1.Init.ContinuousConvMode = ENABLE;
-
+  HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1);
+  HAL_TIM_Base_Start(&htim10);
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*)V, 5);
-  HAL_TIM_Base_Start_IT(&htim10);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -116,7 +127,7 @@ int main(void)
   {
     /* USER CODE END WHILE */
 
-    
+    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -172,14 +183,45 @@ void SystemClock_Config(void)
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc1)
 {
-	medidas[0] = (float)V[0];
-	medidas[1] = (float)V[1];
-	medidas[2] = (float)V[2];
-	medidas[3] = (float)V[3];
-	medidas[4] = (float)V[4];
-	
-	altura =   coef_const  + coef_x1 * medidas[0] +	coef_x2 * medidas[1] + coef_x3 * medidas[2] + coef_x4 * medidas[3] + coef_x5 * medidas[4];
+    // Copiar os valores de V para medidas
+    for (int i = 0; i < 5; i++) {
+        medidas[i] = (float)V[i];
+
+        // Armazenar o novo valor no buffer
+        V_buffer[i][indice] = medidas[i];
+
+        // Calcular a média dos 10 valores
+        float soma = 0.0;
+        for (int j = 0; j < NUM_VALORES; j++) {
+            soma += V_buffer[i][j];
+        }
+        medidas_filtradas[i] = soma / NUM_VALORES;
+    }
+
+    // Cálculo da altura usando os valores filtrados de cada canal
+    altura = coef_const
+           + coef_x1 * medidas_filtradas[0]
+           + coef_x2 * medidas_filtradas[1]
+           + coef_x3 * medidas_filtradas[2]
+           + coef_x4 * medidas_filtradas[3]
+           + coef_x5 * medidas_filtradas[4];
+
+    // Atualizar o índice para o próximo valor
+    indice = (indice + 1) % NUM_VALORES;  // Circular
 }
+void sendHeighToCubeMonitor(void)
+{
+  int altura_int = (int)(altura * 100);  // Multiplica por 100 para preservar 2 casas decimais
+  snprintf(buffer, sizeof(buffer), "%d.%02d\r\n", altura_int / 100, altura_int % 100);
+  HAL_UART_Transmit_DMA(&huart2, (uint8_t*)buffer, strlen(buffer));
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+    // Callback chamado após a transmissão completa via DMA.
+    // Adicione aqui qualquer código necessário para processamento pós-transmissão, se desejado.
+}
+
 /* USER CODE END 4 */
 
 /**
